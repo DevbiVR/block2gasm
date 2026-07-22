@@ -2,111 +2,154 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>GASM Transpiler for GRAB</title>
+    <title>Blockly2GASM</title>
+    <!-- Load Google Blockly Scripts -->
+    <script src="https://unpkg.com"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: #1e1e24; color: #f4f4f6; margin: 0; padding: 20px; }
-        h1 { margin-top: 0; color: #4dadf7; border-bottom: 2px solid #343a40; padding-bottom: 10px; }
-        .container { display: flex; gap: 20px; height: calc(100vh - 180px); min-height: 400px; }
-        .panel { flex: 1; display: flex; flex-direction: column; background: #2a2b36; border-radius: 8px; padding: 15px; border: 1px solid #3e4053; }
-        h2 { margin-top: 0; font-size: 1.2rem; color: #a5d8ff; display: flex; justify-content: space-between; align-items: center; }
-        .reg-row { display: flex; align-items: center; margin-bottom: 8px; gap: 10px; }
-        .reg-label { font-family: monospace; font-weight: bold; width: 40px; color: #ffd43b; }
-        input[type="text"], textarea { background: #121214; color: #e3e6e8; border: 1px solid #4a4b59; border-radius: 4px; padding: 8px; font-size: 0.95rem; }
-        input[type="text"] { flex: 1; }
-        input[type="text"]:focus, textarea:focus { border-color: #4dadf7; outline: none; }
-        textarea { width: 100%; flex: 1; resize: none; font-family: 'Courier New', Courier, monospace; line-height: 1.4; }
-        .actions { margin-top: 20px; text-align: center; }
-        button { background: #37b24d; color: white; border: none; padding: 12px 30px; font-size: 1.1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
-        button:hover { background: #2b8a3e; }
-        .output-box { margin-top: 20px; }
-        .reg-list { overflow-y: auto; flex: 1; padding-right: 5px; }
+        body { background-color: #1e1e24; color: #f4f4f6; margin: 0; padding: 20px; height: 100vh; display: flex; flex-direction: column; }
+        h1 { margin-top: 0; color: #4dadf7; border-bottom: 2px solid #343a40; padding-bottom: 10px; margin-bottom: 15px; }
+        .container { display: flex; gap: 20px; flex: 1; min-height: 0; }
+        .panel { display: flex; flex-direction: column; background: #2a2b36; border-radius: 8px; padding: 15px; border: 1px solid #3e4053; }
+        #left-panel { flex: 2; }
+        #right-panel { flex: 1; }
+        h2 { margin-top: 0; font-size: 1.2rem; color: #a5d8ff; }
+        #blocklyDiv { width: 100%; flex: 1; border: 1px solid #4a4b59; border-radius: 4px; background: #121214; }
+        textarea { width: 100%; flex: 1; background: #121214; color: #e3e6e8; border: 1px solid #4a4b59; border-radius: 4px; padding: 12px; font-family: 'Courier New', Courier, monospace; line-height: 1.4; resize: none; font-size: 1rem; }
+        .actions { margin-top: 15px; text-align: right; }
+        button { background: #4dadf7; color: #121214; border: none; padding: 10px 20px; font-size: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        button:hover { background: #339af0; color: white; }
     </style>
 </head>
 <body>
 
-    <h1>⚡ GRAB GASM Transpiler</h1>
+    <h1>⚡ Blockly2GASM</h1>
     
     <div class="container">
-        <!-- Left Tab: Register Configurations -->
-        <div class="panel">
-            <h2>📋 Register Variables Config</h2>
-            <div class="reg-list" id="registerList">
-                <!-- Dynamically populated R0 to R7 -->
-            </div>
+        <!-- Left Panel: The Visual Drag-and-Drop Editor -->
+        <div id="left-panel" class="panel">
+            <h2>🧩 Logic Block Workspace</h2>
+            <div id="blocklyDiv"></div>
         </div>
         
-        <!-- Right Tab: Code Editor -->
-        <div class="panel">
-            <h2>💻 High-Level Script Editor</h2>
-            <textarea id="editor" placeholder="Write your code using your variable names here...&#10;e.g.&#10;SET player_speed 12.5&#10;ADD score score 1"></textarea>
+        <!-- Right Panel: The Output Code Area -->
+        <div id="right-panel" class="panel">
+            <h2>📜 Compiled GASM Code</h2>
+            <textarea id="output" readonly placeholder="Drag some blocks to generate code..."></textarea>
+            <div class="actions">
+                <button onclick="copyToClipboard()">📋 Copy Code</button>
+            </div>
         </div>
     </div>
 
-    <div class="actions">
-        <button onclick="compileCode()">🚀 Compile to Raw GASM</button>
-    </div>
-
-    <!-- Bottom Section: Output Compilation -->
-    <div class="panel output-box">
-        <h2>✅ Compiled GASM Output <span style="font-size:0.8rem; color:#868e96;">(Copy this into GRAB)</span></h2>
-        <textarea id="output" readonly placeholder="Your raw compiled GASM lines will appear here..." style="height: 120px;"></textarea>
-    </div>
+    <!-- Define the Blockly Toolbox (The Sidebar of Blocks) -->
+    <xml id="toolbox" style="display: none">
+        <category name="Variables" colour="#ffd43b">
+            <block type="gasm_register_set"></block>
+            <block type="gasm_register_get"></block>
+        </category>
+        <category name="Math" colour="#37b24d">
+            <block type="math_number"></block>
+            <block type="gasm_math_op"></block>
+        </category>
+    </xml>
 
     <script>
-        // Dynamically build the R0 - R7 input rows
-        const regList = document.getElementById('registerList');
-        for (let i = 0; i <= 7; i++) {
-            const row = document.createElement('div');
-            row.className = 'reg-row';
-            row.innerHTML = `
-                <span class="reg-label">R${i}</span>
-                <input type="text" id="reg-${i}" placeholder="Enter variable name (e.g., player_speed)">
-            `;
-            regList.appendChild(row);
-        }
+        // --- 1. DEFINE CUSTOM BLOCKS FOR GASM ---
+        Blockly.Blocks['gasm_register_set'] = {
+            init: function() {
+                this.appendValueInput("VALUE")
+                    .setCheck("Number")
+                    .appendField("SET")
+                    .appendField(new Blockly.FieldDropdown([["R0","R0"], ["R1","R1"], ["R2","R2"], ["R3","R3"], ["R4","R4"], ["R5","R5"], ["R6","R6"], ["R7","R7"]]), "REG")
+                    .appendField("TO");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour("#ffd43b");
+            }
+        };
 
-        // Compiler Function
-        function compileCode() {
-            const editorText = document.getElementById('editor').value;
+        Blockly.Blocks['gasm_register_get'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField(new Blockly.FieldDropdown([["R0","R0"], ["R1","R1"], ["R2","R2"], ["R3","R3"], ["R4","R4"], ["R5","R5"], ["R6","R6"], ["R7","R7"]]), "REG");
+                this.setOutput(true, "Number");
+                this.setColour("#ffd43b");
+            }
+        };
+
+        Blockly.Blocks['gasm_math_op'] = {
+            init: function() {
+                this.appendValueInput("A").setCheck("Number");
+                this.appendValueInput("B").setCheck("Number")
+                    .appendField(new Blockly.FieldDropdown([["+","ADD"], ["-","SUB"], ["*","MUL"], ["/","DIV"]]), "OP");
+                this.setOutput(true, "Number");
+                this.setInputsInline(true);
+                this.setColour("#37b24d");
+            }
+        };
+
+        // --- 2. CREATE THE TRANSPILER GENERATOR ---
+        const gasmGenerator = new Blockly.Generator('GASM');
+        gasmGenerator.ORDER_ATOMIC = 0;
+        gasmGenerator.ORDER_NONE = 99;
+
+        gasmGenerator['gasm_register_set'] = function(block) {
+            const reg = block.getFieldValue('REG');
+            const valueCode = gasmGenerator.valueToCode(block, 'VALUE', gasmGenerator.ORDER_NONE) || '0.0';
             
-            // 1. Build the mapping dictionary dynamically from your UI inputs
-            const mapping = {};
-            for (let i = 0; i <= 7; i++) {
-                const varName = document.getElementById(`reg-${i}`).value.trim();
-                if (varName) {
-                    mapping[varName] = `R${i}`;
-                }
+            if (valueCode.startsWith('ADD') || valueCode.startsWith('SUB') || valueCode.startsWith('MUL') || valueCode.startsWith('DIV')) {
+                return `${valueCode.replace('TARGET', reg)}\n`;
             }
+            return `SET ${reg} ${valueCode}\n`;
+        };
 
-            // 2. Process the text line by line
-            const lines = editorText.split('\n');
-            const compiledLines = [];
+        gasmGenerator['gasm_register_get'] = function(block) {
+            const reg = block.getFieldValue('REG');
+            return [reg, gasmGenerator.ORDER_ATOMIC];
+        };
 
-            for (let line of lines) {
-                let trimmed = line.trim();
-                if (!trimmed) {
-                    compiledLines.push(""); // Keep empty spacing lines
-                    continue; 
-                }
+        gasmGenerator['math_number'] = function(block) {
+            const number = parseFloat(block.getFieldValue('NUM')).toFixed(1);
+            return [number, gasmGenerator.ORDER_ATOMIC];
+        };
 
-                // Split line into individual words/tokens while preserving spacing
-                let tokens = trimmed.split(/(\s+)/);
+        gasmGenerator['gasm_math_op'] = function(block) {
+            const op = block.getFieldValue('OP');
+            const valA = gasmGenerator.valueToCode(block, 'A', gasmGenerator.ORDER_ATOMIC) || '0.0';
+            const valB = gasmGenerator.valueToCode(block, 'B', gasmGenerator.ORDER_ATOMIC) || '0.0';
+            return [`${op} TARGET ${valA} ${valB}`, gasmGenerator.ORDER_ATOMIC];
+        };
 
-                // 3. Map custom names directly to hardware registers
-                let processedTokens = tokens.map(token => {
-                    // Check if word matches a configured variable name
-                    if (mapping[token]) {
-                        return mapping[token];
-                    }
-                    return token;
-                });
+        gasmGenerator.scrub_ = function(block, code, thisOnly) {
+            const nextBlock = block.getNextBlock();
+            const nextCode = thisOnly ? '' : gasmGenerator.blockToCode(nextBlock);
+            return code + nextCode;
+        };
 
-                compiledLines.push(processedTokens.join(''));
-            }
+        // --- 3. INITIALIZE WORKSPACE & AUTOMATION ---
+        const workspace = Blockly.inject('blocklyDiv', {
+            toolbox: document.getElementById('toolbox'),
+            theme: 'dark',
+            grid: { spacing: 20, length: 3, colour: '#3e4053', snap: true },
+            trashcan: true
+        });
 
-            // 4. Output the raw formatted code
-            document.getElementById('output').value = compiledLines.join('\n');
+        function updateOutput() {
+            const code = gasmGenerator.workspaceToCode(workspace);
+            document.getElementById('output').value = code.trim();
+        }
+        workspace.addChangeListener(updateOutput);
+
+        function copyToClipboard() {
+            const outputBox = document.getElementById('output');
+            if (!outputBox.value) return;
+            outputBox.select();
+            navigator.clipboard.writeText(outputBox.value);
+            const btn = document.querySelector('.actions button');
+            const orig = btn.innerText;
+            btn.innerText = "✅ Copied!";
+            setTimeout(() => btn.innerText = orig, 1500);
         }
     </script>
 </body>
