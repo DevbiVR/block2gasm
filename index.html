@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Blockly2GASM</title>
     <!-- Load Google Blockly Scripts -->
-    <script src="https://unpkg.com"></script>
+    <script src="https://unpkg.com/blockly/blockly.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #1e1e24; color: #f4f4f6; margin: 0; padding: 20px; height: 100vh; display: flex; flex-direction: column; }
@@ -14,7 +14,7 @@
         #left-panel { flex: 2; }
         #right-panel { flex: 1; }
         h2 { margin-top: 0; font-size: 1.2rem; color: #a5d8ff; }
-        #blocklyDiv { width: 100%; flex: 1; border: 1px solid #4a4b59; border-radius: 4px; background: #121214; }
+        #blocklyDiv { width: 100%; flex: 1; border: 1px solid #4a4b59; border-radius: 4px; background: #ffffff; }
         textarea { width: 100%; flex: 1; background: #121214; color: #e3e6e8; border: 1px solid #4a4b59; border-radius: 4px; padding: 12px; font-family: 'Courier New', Courier, monospace; line-height: 1.4; resize: none; font-size: 1rem; }
         .actions { margin-top: 15px; text-align: right; }
         button { background: #4dadf7; color: #121214; border: none; padding: 10px 20px; font-size: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
@@ -23,18 +23,18 @@
 </head>
 <body>
 
-    <h1>⚡ Blockly2GASM</h1>
+    <h1>Blockly2GASM</h1>
     
     <div class="container">
         <!-- Left Panel: The Visual Drag-and-Drop Editor -->
         <div id="left-panel" class="panel">
-            <h2>🧩 Logic Block Workspace</h2>
+            <h2>blocks</h2>
             <div id="blocklyDiv"></div>
         </div>
         
         <!-- Right Panel: The Output Code Area -->
         <div id="right-panel" class="panel">
-            <h2>📜 Compiled GASM Code</h2>
+            <h2>compiled GASM code</h2>
             <textarea id="output" readonly placeholder="Drag some blocks to generate code..."></textarea>
             <div class="actions">
                 <button onclick="copyToClipboard()">📋 Copy Code</button>
@@ -44,52 +44,78 @@
 
     <!-- Define the Blockly Toolbox (The Sidebar of Blocks) -->
     <xml id="toolbox" style="display: none">
-        <category name="Variables" colour="#ffd43b">
+        <category name="Variables" colour="60">
             <block type="gasm_register_set"></block>
             <block type="gasm_register_get"></block>
         </category>
-        <category name="Math" colour="#37b24d">
+        <category name="Math" colour="120">
             <block type="math_number"></block>
             <block type="gasm_math_op"></block>
         </category>
     </xml>
 
     <script>
-        // --- 1. DEFINE CUSTOM BLOCKS FOR GASM ---
-        Blockly.Blocks['gasm_register_set'] = {
-            init: function() {
-                this.appendValueInput("VALUE")
-                    .setCheck("Number")
-                    .appendField("SET")
-                    .appendField(new Blockly.FieldDropdown([["R0","R0"], ["R1","R1"], ["R2","R2"], ["R3","R3"], ["R4","R4"], ["R5","R5"], ["R6","R6"], ["R7","R7"]]), "REG")
-                    .appendField("TO");
-                this.setPreviousStatement(true, null);
-                this.setNextStatement(true, null);
-                this.setColour("#ffd43b");
-            }
-        };
+        // --- 1. DEFINE BLOCKS FIRST ---
+        Blockly.defineBlocksWithJsonArray([
+          {
+            "type": "gasm_register_set",
+            "message0": "SET %1 TO %2",
+            "args0": [
+              {
+                "type": "field_dropdown",
+                "name": "REG",
+                "options": [["R0","R0"], ["R1","R1"], ["R2","R2"], ["R3","R3"], ["R4","R4"], ["R5","R5"], ["R6","R6"], ["R7","R7"]]
+              },
+              {
+                "type": "input_value",
+                "name": "VALUE",
+                "check": "Number"
+              }
+            ],
+            "previousStatement": null,
+            "nextStatement": null,
+            "colour": 60
+          },
+          {
+            "type": "gasm_register_get",
+            "message0": "%1",
+            "args0": [
+              {
+                "type": "field_dropdown",
+                "name": "REG",
+                "options": [["R0","R0"], ["R1","R1"], ["R2","R2"], ["R3","R3"], ["R4","R4"], ["R5","R5"], ["R6","R6"], ["R7","R7"]]
+              }
+            ],
+            "output": "Number",
+            "colour": 60
+          },
+          {
+            "type": "gasm_math_op",
+            "message0": "%1 %2 %3",
+            "args0": [
+              {
+                "type": "input_value",
+                "name": "A",
+                "check": "Number"
+              },
+              {
+                "type": "field_dropdown",
+                "name": "OP",
+                "options": [["+","ADD"], ["-","SUB"], ["*","MUL"], ["/","DIV"]]
+              },
+              {
+                "type": "input_value",
+                "name": "B",
+                "check": "Number"
+              }
+            ],
+            "inputsInline": true,
+            "output": "Number",
+            "colour": 120
+          }
+        ]);
 
-        Blockly.Blocks['gasm_register_get'] = {
-            init: function() {
-                this.appendDummyInput()
-                    .appendField(new Blockly.FieldDropdown([["R0","R0"], ["R1","R1"], ["R2","R2"], ["R3","R3"], ["R4","R4"], ["R5","R5"], ["R6","R6"], ["R7","R7"]]), "REG");
-                this.setOutput(true, "Number");
-                this.setColour("#ffd43b");
-            }
-        };
-
-        Blockly.Blocks['gasm_math_op'] = {
-            init: function() {
-                this.appendValueInput("A").setCheck("Number");
-                this.appendValueInput("B").setCheck("Number")
-                    .appendField(new Blockly.FieldDropdown([["+","ADD"], ["-","SUB"], ["*","MUL"], ["/","DIV"]]), "OP");
-                this.setOutput(true, "Number");
-                this.setInputsInline(true);
-                this.setColour("#37b24d");
-            }
-        };
-
-        // --- 2. CREATE THE TRANSPILER GENERATOR ---
+        // --- 2. SETUP THE TRANSPILER COMPILER ---
         const gasmGenerator = new Blockly.Generator('GASM');
         gasmGenerator.ORDER_ATOMIC = 0;
         gasmGenerator.ORDER_NONE = 99;
@@ -127,11 +153,10 @@
             return code + nextCode;
         };
 
-        // --- 3. INITIALIZE WORKSPACE & AUTOMATION ---
+        // --- 3. INJECT THE WORKSPACE ---
         const workspace = Blockly.inject('blocklyDiv', {
             toolbox: document.getElementById('toolbox'),
-            theme: 'dark',
-            grid: { spacing: 20, length: 3, colour: '#3e4053', snap: true },
+            grid: { spacing: 20, length: 3, colour: '#ccc', snap: true },
             trashcan: true
         });
 
