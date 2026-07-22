@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GASM Transpiler for GRAB</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #1e1e24; color: #f4f4f6; margin: 0; padding: 20px; }
+        h1 { margin-top: 0; color: #4dadf7; border-bottom: 2px solid #343a40; padding-bottom: 10px; }
+        .container { display: flex; gap: 20px; height: calc(100vh - 180px); min-height: 400px; }
+        .panel { flex: 1; display: flex; flex-direction: column; background: #2a2b36; border-radius: 8px; padding: 15px; border: 1px solid #3e4053; }
+        h2 { margin-top: 0; font-size: 1.2rem; color: #a5d8ff; display: flex; justify-content: space-between; align-items: center; }
+        .reg-row { display: flex; align-items: center; margin-bottom: 8px; gap: 10px; }
+        .reg-label { font-family: monospace; font-weight: bold; width: 40px; color: #ffd43b; }
+        input[type="text"], textarea { background: #121214; color: #e3e6e8; border: 1px solid #4a4b59; border-radius: 4px; padding: 8px; font-size: 0.95rem; }
+        input[type="text"] { flex: 1; }
+        input[type="text"]:focus, textarea:focus { border-color: #4dadf7; outline: none; }
+        textarea { width: 100%; flex: 1; resize: none; font-family: 'Courier New', Courier, monospace; line-height: 1.4; }
+        .actions { margin-top: 20px; text-align: center; }
+        button { background: #37b24d; color: white; border: none; padding: 12px 30px; font-size: 1.1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        button:hover { background: #2b8a3e; }
+        .output-box { margin-top: 20px; }
+        .reg-list { overflow-y: auto; flex: 1; padding-right: 5px; }
+    </style>
+</head>
+<body>
+
+    <h1>⚡ GRAB GASM Transpiler</h1>
+    
+    <div class="container">
+        <!-- Left Tab: Register Configurations -->
+        <div class="panel">
+            <h2>📋 Register Variables Config</h2>
+            <div class="reg-list" id="registerList">
+                <!-- Dynamically populated R0 to R7 -->
+            </div>
+        </div>
+        
+        <!-- Right Tab: Code Editor -->
+        <div class="panel">
+            <h2>💻 High-Level Script Editor</h2>
+            <textarea id="editor" placeholder="Write your code using your variable names here...&#10;e.g.&#10;SET player_speed 12.5&#10;ADD score score 1"></textarea>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button onclick="compileCode()">🚀 Compile to Raw GASM</button>
+    </div>
+
+    <!-- Bottom Section: Output Compilation -->
+    <div class="panel output-box">
+        <h2>✅ Compiled GASM Output <span style="font-size:0.8rem; color:#868e96;">(Copy this into GRAB)</span></h2>
+        <textarea id="output" readonly placeholder="Your raw compiled GASM lines will appear here..." style="height: 120px;"></textarea>
+    </div>
+
+    <script>
+        // Dynamically build the R0 - R7 input rows
+        const regList = document.getElementById('registerList');
+        for (let i = 0; i <= 7; i++) {
+            const row = document.createElement('div');
+            row.className = 'reg-row';
+            row.innerHTML = `
+                <span class="reg-label">R${i}</span>
+                <input type="text" id="reg-${i}" placeholder="Enter variable name (e.g., player_speed)">
+            `;
+            regList.appendChild(row);
+        }
+
+        // Compiler Function
+        function compileCode() {
+            const editorText = document.getElementById('editor').value;
+            
+            // 1. Build the mapping dictionary dynamically from your UI inputs
+            const mapping = {};
+            for (let i = 0; i <= 7; i++) {
+                const varName = document.getElementById(`reg-${i}`).value.trim();
+                if (varName) {
+                    mapping[varName] = `R${i}`;
+                }
+            }
+
+            // 2. Process the text line by line
+            const lines = editorText.split('\n');
+            const compiledLines = [];
+
+            for (let line of lines) {
+                let trimmed = line.trim();
+                if (!trimmed) {
+                    compiledLines.push(""); // Keep empty spacing lines
+                    continue; 
+                }
+
+                // Split line into individual words/tokens while preserving spacing
+                let tokens = trimmed.split(/(\s+)/);
+
+                // 3. Map custom names directly to hardware registers
+                let processedTokens = tokens.map(token => {
+                    // Check if word matches a configured variable name
+                    if (mapping[token]) {
+                        return mapping[token];
+                    }
+                    return token;
+                });
+
+                compiledLines.push(processedTokens.join(''));
+            }
+
+            // 4. Output the raw formatted code
+            document.getElementById('output').value = compiledLines.join('\n');
+        }
+    </script>
+</body>
+</html>
