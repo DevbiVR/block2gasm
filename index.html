@@ -16,6 +16,17 @@
         .reg-config label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: #a5d8ff; font-weight: bold; }
         .reg-config input { background: #121214; color: #e3e6e8; border: 1px solid #4a4b59; border-radius: 4px; padding: 6px 8px; font-size: 0.9rem; font-family: inherit; }
         .reg-config-note { grid-column: 1 / -1; font-size: 0.75rem; color: #8a8d99; margin-top: -4px; }
+        .header-buttons { display: flex; gap: 10px; }
+        .ref-config { display: flex; flex-direction: column; gap: 12px; background: #2a2b36; border: 1px solid #3e4053; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .ref-config-note { font-size: 0.75rem; color: #8a8d99; }
+        .ref-add-row { display: flex; gap: 8px; }
+        .ref-add-row input { flex: 1; background: #121214; color: #e3e6e8; border: 1px solid #4a4b59; border-radius: 4px; padding: 8px 10px; font-size: 0.9rem; font-family: inherit; }
+        .ref-add-row button { background: #4dadf7; color: #121214; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .ref-add-row button:hover { background: #339af0; color: white; }
+        .ref-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .ref-chip { display: flex; align-items: center; gap: 8px; background: #343a40; border: 1px solid #4a4b59; border-radius: 20px; padding: 6px 8px 6px 14px; font-size: 0.85rem; color: #f4f4f6; }
+        .ref-chip button { background: none; border: none; color: #ff8787; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 4px; }
+        .ref-chip button:hover { color: #fa5252; }
         .container { display: flex; gap: 20px; flex: 1; min-height: 0; }
         .panel { display: flex; flex-direction: column; background: #2a2b36; border-radius: 8px; padding: 15px; border: 1px solid #3e4053; }
         #left-panel { flex: 2; }
@@ -32,11 +43,23 @@
 
     <div class="header-row">
         <h1>Blockly2GASM</h1>
-        <button id="toggleRegPanel" class="ghost-btn">⚙ Configure Registers</button>
+        <div class="header-buttons">
+            <button id="toggleRefPanel" class="ghost-btn">🔗 Configure References</button>
+            <button id="toggleRegPanel" class="ghost-btn">⚙ Configure Registers</button>
+        </div>
     </div>
 
     <div id="regPanel" class="reg-config" style="display:none;">
         <div class="reg-config-note">Give R0–R7 friendly names. Blocks will show the name, but generated code always uses the real register (e.g. R0).</div>
+    </div>
+
+    <div id="refPanel" class="ref-config" style="display:none;">
+        <div class="ref-config-note">Define the object connections used in your level (e.g. "Player", "Door1"). They'll show up as a dropdown in the Connection block instead of free text, so names stay consistent.</div>
+        <div class="ref-add-row">
+            <input type="text" id="refNameInput" placeholder="e.g. Door1" />
+            <button id="addRefBtn">+ Add Reference</button>
+        </div>
+        <div class="ref-list" id="refList"></div>
     </div>
 
     <div class="container">
@@ -126,6 +149,15 @@
         }
 
         // ============================================================
+        // 1b. REFERENCE (CONNECTION) NAMING
+        // ============================================================
+        const references = ['Obj'];
+
+        function getReferenceOptions() {
+            return references.length ? references.map(r => [r, r]) : [['Obj', 'Obj']];
+        }
+
+        // ============================================================
         // 2. COLOURS
         // ============================================================
         const COLOR = {
@@ -164,7 +196,7 @@
         Blockly.Blocks['gasm_connection'] = {
             init: function() {
                 this.appendDummyInput()
-                    .appendField(new Blockly.FieldTextInput('Obj'), 'OBJ')
+                    .appendField(new Blockly.FieldDropdown(getReferenceOptions), 'OBJ')
                     .appendField('.')
                     .appendField(new Blockly.FieldDropdown([
                         ['Pos.X','Pos.X'], ['Pos.Y','Pos.Y'], ['Pos.Z','Pos.Z'],
@@ -404,6 +436,76 @@
                 });
             });
         }
+
+        // ============================================================
+        // 9. REFERENCE CONFIG PANEL
+        // ============================================================
+        const refPanel = document.getElementById('refPanel');
+        const refList = document.getElementById('refList');
+        const refNameInput = document.getElementById('refNameInput');
+
+        function renderRefList() {
+            refList.innerHTML = '';
+            references.forEach(name => {
+                const chip = document.createElement('div');
+                chip.className = 'ref-chip';
+                const label = document.createElement('span');
+                label.textContent = name;
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = '×';
+                removeBtn.title = `Remove ${name}`;
+                removeBtn.addEventListener('click', () => removeReference(name));
+                chip.appendChild(label);
+                chip.appendChild(removeBtn);
+                refList.appendChild(chip);
+            });
+        }
+
+        function addReference(name) {
+            name = name.trim();
+            if (!name || references.includes(name)) return;
+            references.push(name);
+            renderRefList();
+            refreshReferenceDropdowns();
+        }
+
+        function removeReference(name) {
+            const idx = references.indexOf(name);
+            if (idx === -1) return;
+            references.splice(idx, 1);
+            renderRefList();
+            refreshReferenceDropdowns();
+        }
+
+        document.getElementById('addRefBtn').addEventListener('click', () => {
+            addReference(refNameInput.value);
+            refNameInput.value = '';
+            refNameInput.focus();
+        });
+        refNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                addReference(refNameInput.value);
+                refNameInput.value = '';
+            }
+        });
+
+        document.getElementById('toggleRefPanel').addEventListener('click', () => {
+            refPanel.style.display = (refPanel.style.display === 'none') ? 'flex' : 'none';
+        });
+
+        function refreshReferenceDropdowns() {
+            workspace.getAllBlocks(false).forEach(b => {
+                b.inputList.forEach(inp => {
+                    inp.fieldRow.forEach(f => {
+                        if (f.name === 'OBJ' && typeof f.forceRerender === 'function') {
+                            f.forceRerender();
+                        }
+                    });
+                });
+            });
+        }
+
+        renderRefList();
     </script>
 </body>
 </html>
