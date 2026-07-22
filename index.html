@@ -8,7 +8,14 @@
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #1e1e24; color: #f4f4f6; margin: 0; padding: 20px; height: 100vh; display: flex; flex-direction: column; }
-        h1 { margin-top: 0; color: #4dadf7; border-bottom: 2px solid #343a40; padding-bottom: 10px; margin-bottom: 15px; }
+        .header-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #343a40; padding-bottom: 10px; margin-bottom: 15px; }
+        h1 { margin: 0; color: #4dadf7; }
+        .ghost-btn { background: transparent; color: #a5d8ff; border: 1px solid #4a4b59; padding: 8px 14px; font-size: 0.9rem; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .ghost-btn:hover { background: #343a40; }
+        .reg-config { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #2a2b36; border: 1px solid #3e4053; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .reg-config label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: #a5d8ff; font-weight: bold; }
+        .reg-config input { background: #121214; color: #e3e6e8; border: 1px solid #4a4b59; border-radius: 4px; padding: 6px 8px; font-size: 0.9rem; font-family: inherit; }
+        .reg-config-note { grid-column: 1 / -1; font-size: 0.75rem; color: #8a8d99; margin-top: -4px; }
         .container { display: flex; gap: 20px; flex: 1; min-height: 0; }
         .panel { display: flex; flex-direction: column; background: #2a2b36; border-radius: 8px; padding: 15px; border: 1px solid #3e4053; }
         #left-panel { flex: 2; }
@@ -17,135 +24,121 @@
         #blocklyDiv { width: 100%; flex: 1; border: 1px solid #4a4b59; border-radius: 4px; background: #ffffff; }
         textarea { width: 100%; flex: 1; background: #121214; color: #e3e6e8; border: 1px solid #4a4b59; border-radius: 4px; padding: 12px; font-family: 'Courier New', Courier, monospace; line-height: 1.4; resize: none; font-size: 1rem; }
         .actions { margin-top: 15px; text-align: right; }
-        button { background: #4dadf7; color: #121214; border: none; padding: 10px 20px; font-size: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
-        button:hover { background: #339af0; color: white; }
+        button.primary { background: #4dadf7; color: #121214; border: none; padding: 10px 20px; font-size: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        button.primary:hover { background: #339af0; color: white; }
     </style>
 </head>
 <body>
 
-    <h1>Blockly2GASM</h1>
-    
+    <div class="header-row">
+        <h1>Blockly2GASM</h1>
+        <button id="toggleRegPanel" class="ghost-btn">⚙ Configure Registers</button>
+    </div>
+
+    <div id="regPanel" class="reg-config" style="display:none;">
+        <div class="reg-config-note">Give R0–R7 friendly names. Blocks will show the name, but generated code always uses the real register (e.g. R0).</div>
+    </div>
+
     <div class="container">
         <!-- Left Panel: The Visual Drag-and-Drop Editor -->
         <div id="left-panel" class="panel">
             <h2>blocks</h2>
             <div id="blocklyDiv"></div>
         </div>
-        
+
         <!-- Right Panel: The Output Code Area -->
         <div id="right-panel" class="panel">
             <h2>compiled GASM code</h2>
             <textarea id="output" readonly placeholder="Drag some blocks to generate code..."></textarea>
             <div class="actions">
-                <button onclick="copyToClipboard()">📋 Copy Code</button>
+                <button class="primary" onclick="copyToClipboard()">📋 Copy Code</button>
             </div>
         </div>
     </div>
 
-    <!-- Define the Blockly Toolbox (The Sidebar of Blocks) -->
+    <!-- Toolbox -->
     <xml id="toolbox" style="display: none">
-        <category name="Variables" colour="60">
-            <block type="gasm_register_set"></block>
-            <block type="gasm_register_get"></block>
+        <category name="Values" colour="260">
+            <block type="gasm_register"></block>
+            <block type="gasm_connection"></block>
+            <block type="gasm_special"></block>
+            <block type="math_number"><field name="NUM">0</field></block>
         </category>
-        <category name="Math" colour="120">
-            <block type="math_number"></block>
-            <block type="gasm_math_op"></block>
+        <category name="Data" colour="60">
+            <block type="gasm_set"></block>
+            <block type="gasm_swap"></block>
+        </category>
+        <category name="Arithmetic" colour="120">
+            <block type="gasm_add"></block>
+            <block type="gasm_sub"></block>
+            <block type="gasm_mul"></block>
+            <block type="gasm_div"></block>
+            <block type="gasm_mod"></block>
+        </category>
+        <category name="Math" colour="200">
+            <block type="gasm_floor"></block>
+            <block type="gasm_sqrt"></block>
+            <block type="gasm_sin"></block>
+            <block type="gasm_cos"></block>
+            <block type="gasm_atan2"></block>
+        </category>
+        <category name="Comparison" colour="0">
+            <block type="gasm_equal"></block>
+            <block type="gasm_less"></block>
+            <block type="gasm_greater"></block>
+            <block type="gasm_and"></block>
+            <block type="gasm_or"></block>
+            <block type="gasm_not"></block>
+        </category>
+        <category name="Control Flow" colour="290">
+            <block type="gasm_label"></block>
+            <block type="gasm_goto"></block>
+            <block type="gasm_if"></block>
+            <block type="gasm_end"></block>
+        </category>
+        <category name="Vector" colour="160">
+            <block type="gasm_vec_set"></block>
+            <block type="gasm_vec_add"></block>
+            <block type="gasm_vec_sub"></block>
+            <block type="gasm_vec_mul"></block>
+            <block type="gasm_vec_scl"></block>
+            <block type="gasm_vec_len"></block>
+            <block type="gasm_vec_dot"></block>
+        </category>
+        <category name="Misc" colour="330">
+            <block type="gasm_rand"></block>
+            <block type="gasm_sleep"></block>
+            <block type="gasm_comment"></block>
+            <block type="gasm_raw"></block>
         </category>
     </xml>
 
     <script>
-        // --- 1. DEFINE BLOCKS FIRST ---
-        Blockly.defineBlocksWithJsonArray([
-          {
-            "type": "gasm_register_set",
-            "message0": "SET %1 TO %2",
-            "args0": [
-              {
-                "type": "field_dropdown",
-                "name": "REG",
-                "options": [["R0","R0"], ["R1","R1"], ["R2","R2"], ["R3","R3"], ["R4","R4"], ["R5","R5"], ["R6","R6"], ["R7","R7"]]
-              },
-              {
-                "type": "input_value",
-                "name": "VALUE",
-                "check": "Number"
-              }
-            ],
-            "previousStatement": null,
-            "nextStatement": null,
-            "colour": 60
-          },
-          {
-            "type": "gasm_register_get",
-            "message0": "%1",
-            "args0": [
-              {
-                "type": "field_dropdown",
-                "name": "REG",
-                "options": [["R0","R0"], ["R1","R1"], ["R2","R2"], ["R3","R3"], ["R4","R4"], ["R5","R5"], ["R6","R6"], ["R7","R7"]]
-              }
-            ],
-            "output": "Number",
-            "colour": 60
-          },
-          {
-            "type": "gasm_math_op",
-            "message0": "%1 %2 %3",
-            "args0": [
-              {
-                "type": "input_value",
-                "name": "A",
-                "check": "Number"
-              },
-              {
-                "type": "field_dropdown",
-                "name": "OP",
-                "options": [["+","ADD"], ["-","SUB"], ["*","MUL"], ["/","DIV"]]
-              },
-              {
-                "type": "input_value",
-                "name": "B",
-                "check": "Number"
-              }
-            ],
-            "inputsInline": true,
-            "output": "Number",
-            "colour": 120
-          }
-        ]);
+        // ============================================================
+        // 1. REGISTER NAMING
+        // ============================================================
+        const REGS = ['R0','R1','R2','R3','R4','R5','R6','R7'];
+        const registerNames = {};
+        REGS.forEach(r => registerNames[r] = '');
 
-        // --- 2. SETUP THE TRANSPILER COMPILER ---
-        const gasmGenerator = new Blockly.Generator('GASM');
+        function getRegisterOptions() {
+            return REGS.map(r => [registerNames[r] ? `${r} · ${registerNames[r]}` : r, r]);
+        }
+
+        // ============================================================
+        // 2. COLOURS
+        // ============================================================
+        const COLOR = {
+            VALUE: 260, DATA: 60, ARITH: 120, MATH: 200,
+            COMPARE: 0, CONTROL: 290, VECTOR: 160, MISC: 330
+        };
+
+        // ============================================================
+        // 3. GASM CODE GENERATOR
+        // ============================================================
+        const gasmGenerator = new Blockly.CodeGenerator('GASM');
         gasmGenerator.ORDER_ATOMIC = 0;
         gasmGenerator.ORDER_NONE = 99;
-
-        gasmGenerator['gasm_register_set'] = function(block) {
-            const reg = block.getFieldValue('REG');
-            const valueCode = gasmGenerator.valueToCode(block, 'VALUE', gasmGenerator.ORDER_NONE) || '0.0';
-            
-            if (valueCode.startsWith('ADD') || valueCode.startsWith('SUB') || valueCode.startsWith('MUL') || valueCode.startsWith('DIV')) {
-                return `${valueCode.replace('TARGET', reg)}\n`;
-            }
-            return `SET ${reg} ${valueCode}\n`;
-        };
-
-        gasmGenerator['gasm_register_get'] = function(block) {
-            const reg = block.getFieldValue('REG');
-            return [reg, gasmGenerator.ORDER_ATOMIC];
-        };
-
-        gasmGenerator['math_number'] = function(block) {
-            const number = parseFloat(block.getFieldValue('NUM')).toFixed(1);
-            return [number, gasmGenerator.ORDER_ATOMIC];
-        };
-
-        gasmGenerator['gasm_math_op'] = function(block) {
-            const op = block.getFieldValue('OP');
-            const valA = gasmGenerator.valueToCode(block, 'A', gasmGenerator.ORDER_ATOMIC) || '0.0';
-            const valB = gasmGenerator.valueToCode(block, 'B', gasmGenerator.ORDER_ATOMIC) || '0.0';
-            return [`${op} TARGET ${valA} ${valB}`, gasmGenerator.ORDER_ATOMIC];
-        };
 
         gasmGenerator.scrub_ = function(block, code, thisOnly) {
             const nextBlock = block.getNextBlock();
@@ -153,7 +146,208 @@
             return code + nextCode;
         };
 
-        // --- 3. INJECT THE WORKSPACE ---
+        // ============================================================
+        // 4. VALUE BLOCKS (registers, connections, special registers)
+        // ============================================================
+        Blockly.Blocks['gasm_register'] = {
+            init: function() {
+                this.appendDummyInput().appendField(new Blockly.FieldDropdown(getRegisterOptions), 'REG');
+                this.setOutput(true, null);
+                this.setColour(COLOR.VALUE);
+                this.setTooltip('A working register (R0–R7)');
+            }
+        };
+        gasmGenerator.forBlock['gasm_register'] = function(block) {
+            return [block.getFieldValue('REG'), gasmGenerator.ORDER_ATOMIC];
+        };
+
+        Blockly.Blocks['gasm_connection'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField(new Blockly.FieldTextInput('Obj'), 'OBJ')
+                    .appendField('.')
+                    .appendField(new Blockly.FieldDropdown([
+                        ['Pos.X','Pos.X'], ['Pos.Y','Pos.Y'], ['Pos.Z','Pos.Z'],
+                        ['Rot.X','Rot.X'], ['Rot.Y','Rot.Y'], ['Rot.Z','Rot.Z'],
+                        ['Col.R','Col.R'], ['Col.G','Col.G'], ['Col.B','Col.B'],
+                        ['Act','Act']
+                    ]), 'PROP');
+                this.setOutput(true, null);
+                this.setColour(COLOR.VALUE);
+                this.setTooltip('A connection to an object property, e.g. Obj.Pos.X (Act is read-only)');
+            }
+        };
+        gasmGenerator.forBlock['gasm_connection'] = function(block) {
+            return [`${block.getFieldValue('OBJ')}.${block.getFieldValue('PROP')}`, gasmGenerator.ORDER_ATOMIC];
+        };
+
+        Blockly.Blocks['gasm_special'] = {
+            init: function() {
+                this.appendDummyInput().appendField(new Blockly.FieldDropdown([
+                    ['ProgramCounter', 'ProgramCounter'],
+                    ['DeltaTime', 'DeltaTime'],
+                    ['Halt', 'Halt'],
+                    ['HaltFrame', 'HaltFrame'],
+                    ['SleepTimer', 'SleepTimer']
+                ]), 'SPECIAL');
+                this.setOutput(true, null);
+                this.setColour(COLOR.VALUE);
+                this.setTooltip('A special runtime register');
+            }
+        };
+        gasmGenerator.forBlock['gasm_special'] = function(block) {
+            return [block.getFieldValue('SPECIAL'), gasmGenerator.ORDER_ATOMIC];
+        };
+
+        gasmGenerator.forBlock['math_number'] = function(block) {
+            return [String(Number(block.getFieldValue('NUM'))), gasmGenerator.ORDER_ATOMIC];
+        };
+
+        // ============================================================
+        // 5. DATA-DRIVEN INSTRUCTION BLOCKS
+        //    (SET, SWAP, ADD, SUB, MUL, DIV, MOD, FLOOR, SQRT, SIN,
+        //     COS, ATAN2, EQUAL, LESS, GREATER, AND, OR, NOT,
+        //     RAND, SLEEP, VEC_SET, VEC_ADD, VEC_SUB, VEC_MUL,
+        //     VEC_SCL, VEC_LEN, VEC_DOT)
+        // ============================================================
+        const INSTRUCTIONS = [
+            { op: 'SET',      cat: 'DATA',    args: ['DST','SRC'] },
+            { op: 'SWAP',     cat: 'DATA',    args: ['A','B'] },
+            { op: 'ADD',      cat: 'ARITH',   args: ['DST','A','B'] },
+            { op: 'SUB',      cat: 'ARITH',   args: ['DST','A','B'] },
+            { op: 'MUL',      cat: 'ARITH',   args: ['DST','A','B'] },
+            { op: 'DIV',      cat: 'ARITH',   args: ['DST','A','B'] },
+            { op: 'MOD',      cat: 'ARITH',   args: ['DST','A','B'] },
+            { op: 'FLOOR',    cat: 'MATH',    args: ['DST','SRC'] },
+            { op: 'SQRT',     cat: 'MATH',    args: ['DST','SRC'] },
+            { op: 'SIN',      cat: 'MATH',    args: ['DST','SRC'] },
+            { op: 'COS',      cat: 'MATH',    args: ['DST','SRC'] },
+            { op: 'ATAN2',    cat: 'MATH',    args: ['DST','A','B'] },
+            { op: 'EQUAL',    cat: 'COMPARE', args: ['DST','A','B'] },
+            { op: 'LESS',     cat: 'COMPARE', args: ['DST','A','B'] },
+            { op: 'GREATER',  cat: 'COMPARE', args: ['DST','A','B'] },
+            { op: 'AND',      cat: 'COMPARE', args: ['DST','A','B'] },
+            { op: 'OR',       cat: 'COMPARE', args: ['DST','A','B'] },
+            { op: 'NOT',      cat: 'COMPARE', args: ['DST','SRC'] },
+            { op: 'RAND',     cat: 'MISC',    args: ['DST','N'] },
+            { op: 'SLEEP',    cat: 'MISC',    args: ['MS'] },
+            { op: 'VEC_SET',  cat: 'VECTOR',  args: ['DST','SRC'] },
+            { op: 'VEC_ADD',  cat: 'VECTOR',  args: ['DST','A','B'] },
+            { op: 'VEC_SUB',  cat: 'VECTOR',  args: ['DST','A','B'] },
+            { op: 'VEC_MUL',  cat: 'VECTOR',  args: ['DST','A','B'] },
+            { op: 'VEC_SCL',  cat: 'VECTOR',  args: ['DST','A','S'] },
+            { op: 'VEC_LEN',  cat: 'VECTOR',  args: ['DST','A'] },
+            { op: 'VEC_DOT',  cat: 'VECTOR',  args: ['DST','A','B'] },
+        ];
+
+        INSTRUCTIONS.forEach(def => {
+            const type = 'gasm_' + def.op.toLowerCase();
+            Blockly.Blocks[type] = {
+                init: function() {
+                    this.appendDummyInput().appendField(def.op);
+                    def.args.forEach(argName => {
+                        this.appendValueInput(argName).appendField(argName);
+                    });
+                    this.setInputsInline(true);
+                    this.setPreviousStatement(true, null);
+                    this.setNextStatement(true, null);
+                    this.setColour(COLOR[def.cat]);
+                    this.setTooltip(`${def.op} ${def.args.join(' ')}`);
+                }
+            };
+            gasmGenerator.forBlock[type] = function(block) {
+                const parts = def.args.map(a => gasmGenerator.valueToCode(block, a, gasmGenerator.ORDER_ATOMIC) || '0');
+                return `${def.op} ${parts.join(' ')}\n`;
+            };
+        });
+
+        // ============================================================
+        // 6. CONTROL FLOW / MISC BLOCKS (need text fields, not just values)
+        // ============================================================
+        Blockly.Blocks['gasm_label'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField('LABEL')
+                    .appendField(new Blockly.FieldTextInput('loop'), 'NAME');
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour(COLOR.CONTROL);
+                this.setTooltip('Defines a label to jump to');
+            }
+        };
+        gasmGenerator.forBlock['gasm_label'] = block => `LABEL ${block.getFieldValue('NAME')}\n`;
+
+        Blockly.Blocks['gasm_goto'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField('GOTO')
+                    .appendField(new Blockly.FieldTextInput('loop'), 'NAME');
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour(COLOR.CONTROL);
+                this.setTooltip('Jumps to a label unconditionally');
+            }
+        };
+        gasmGenerator.forBlock['gasm_goto'] = block => `GOTO ${block.getFieldValue('NAME')}\n`;
+
+        Blockly.Blocks['gasm_if'] = {
+            init: function() {
+                this.appendValueInput('REG').appendField('IF');
+                this.appendDummyInput()
+                    .appendField('GOTO')
+                    .appendField(new Blockly.FieldTextInput('label'), 'NAME');
+                this.setInputsInline(true);
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour(COLOR.CONTROL);
+                this.setTooltip('Jumps to a label only if REG is not zero');
+            }
+        };
+        gasmGenerator.forBlock['gasm_if'] = function(block) {
+            const reg = gasmGenerator.valueToCode(block, 'REG', gasmGenerator.ORDER_ATOMIC) || '0';
+            return `IF ${reg} ${block.getFieldValue('NAME')}\n`;
+        };
+
+        Blockly.Blocks['gasm_end'] = {
+            init: function() {
+                this.appendDummyInput().appendField('END');
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour(COLOR.CONTROL);
+                this.setTooltip('Halts the program');
+            }
+        };
+        gasmGenerator.forBlock['gasm_end'] = () => 'END\n';
+
+        Blockly.Blocks['gasm_comment'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField(';')
+                    .appendField(new Blockly.FieldTextInput('comment'), 'TEXT');
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour(COLOR.MISC);
+                this.setTooltip('A comment line (stripped when pasted into GRAB)');
+            }
+        };
+        gasmGenerator.forBlock['gasm_comment'] = block => `; ${block.getFieldValue('TEXT')}\n`;
+
+        Blockly.Blocks['gasm_raw'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField('RAW')
+                    .appendField(new Blockly.FieldTextInput('NOP'), 'CODE');
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour(COLOR.MISC);
+                this.setTooltip('Escape hatch: insert a raw line of GASM code as-is');
+            }
+        };
+        gasmGenerator.forBlock['gasm_raw'] = block => `${block.getFieldValue('CODE')}\n`;
+
+        // ============================================================
+        // 7. INJECT THE WORKSPACE
+        // ============================================================
         const workspace = Blockly.inject('blocklyDiv', {
             toolbox: document.getElementById('toolbox'),
             grid: { spacing: 20, length: 3, colour: '#ccc', snap: true },
@@ -175,6 +369,40 @@
             const orig = btn.innerText;
             btn.innerText = "✅ Copied!";
             setTimeout(() => btn.innerText = orig, 1500);
+        }
+
+        // ============================================================
+        // 8. REGISTER CONFIG PANEL
+        // ============================================================
+        const regPanel = document.getElementById('regPanel');
+        REGS.forEach(r => {
+            const label = document.createElement('label');
+            label.textContent = r;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'e.g. Speed';
+            input.addEventListener('input', (e) => {
+                registerNames[r] = e.target.value.trim();
+                refreshRegisterDropdowns();
+            });
+            label.appendChild(input);
+            regPanel.appendChild(label);
+        });
+
+        document.getElementById('toggleRegPanel').addEventListener('click', () => {
+            regPanel.style.display = (regPanel.style.display === 'none') ? 'grid' : 'none';
+        });
+
+        function refreshRegisterDropdowns() {
+            workspace.getAllBlocks(false).forEach(b => {
+                b.inputList.forEach(inp => {
+                    inp.fieldRow.forEach(f => {
+                        if (f.name === 'REG' && typeof f.forceRerender === 'function') {
+                            f.forceRerender();
+                        }
+                    });
+                });
+            });
         }
     </script>
 </body>
